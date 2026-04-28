@@ -1,12 +1,5 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-文件名: spider_weather.py
-作者: ZZS
-项目: LlmProject
-创建日期: 2026/2/4
-描述: 
-"""
+
+
 import requests
 import mysql.connector
 from datetime import datetime, timedelta
