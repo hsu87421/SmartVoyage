@@ -9,10 +9,15 @@
 """
 import asyncio
 import json
+import os
+import sys
 import uuid
 from datetime import datetime
 import pytz
 import re
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from python_a2a import AgentNetwork, TextContent, Message, MessageRole, Task
 from langchain_openai import ChatOpenAI
 
@@ -121,23 +126,8 @@ def process_user_input(prompt):
             for intent in intents:
                 logger.info(f"处理意图：{intent}")
                 agent_name = conf.intent[intent]
-                # 根据意图确定代理名称
-                # if intent == "weather":
-                #     agent_name = "WeatherQueryAssistant"
-                # elif intent in ["flight", "train", "concert"]:
-                #     agent_name = "TicketQueryAssistant"
-                # elif intent == "order":
-                #     agent_name = "TicketOrderAssistant"
-                # else:
-                #     agent_name = None
-
-                # 不同意图处理方式
-                if intent == "attraction":
-                    # 对于景点推荐，直接使用LLM生成
-                    chain = SmartVoyagePrompts.attraction_prompt() | llm
-                    rec_response = chain.invoke({"query": prompt}).content.strip()
-                    responses.append(rec_response)
-                elif agent_name:
+                # 统一通过 A2A Agent 处理
+                if agent_name:
                     # 对于代理意图，则调用代理
                     # 1）获取问题
                     #     # {{"intents": ["intent1", "intent2"], "user_queries": {{"intent1": "user_query1", "intent2": "user_query2"}}, "follow_up_message": "追问消息"}}

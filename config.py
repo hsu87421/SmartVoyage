@@ -9,6 +9,9 @@
 """
 
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # 项目根目录
 project_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
@@ -29,18 +32,18 @@ class Config:
 
     def __init__(self):
         # 大模型配置
-        self.base_url = 'https://api.siliconflow.cn/v1'
-        self.api_key = 'sk-xjpgcjnuhhkgucuvxuvhdbcfmgwlakyjqynshyectvcgifdw'
-        self.model_name = 'Qwen/Qwen2.5-72B-Instruct'
+        self.base_url = os.getenv('LLM_BASE_URL', 'https://api.siliconflow.cn/v1')
+        self.api_key = os.getenv('LLM_API_KEY', '')
+        self.model_name = os.getenv('LLM_MODEL_NAME', 'Qwen/Qwen2.5-72B-Instruct')
 
         # 数据库配置
-        self.host = 'localhost'
-        self.user = 'root'
-        self.password = '123456'
-        self.database = 'travel_rag'
+        self.host = os.getenv('MYSQL_HOST', 'localhost')
+        self.user = os.getenv('MYSQL_USER', 'root')
+        self.password = os.getenv('MYSQL_PASSWORD', '')
+        self.database = os.getenv('MYSQL_DATABASE', 'travel_rag')
 
         # 日志配置
-        self.log_file = os.path.join(project_root, 'SmartVoyage4', 'logs/app.log')
+        self.log_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs', 'app.log')
 
         # 票务查询的12306接口地址
         self.url_123 = ""

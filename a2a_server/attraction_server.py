@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-文件名: attraction_server.py
-作者: ZZS
-项目: LlmProject
-创建日期: 2026/2/6
-描述: 景点推荐Agent服务器 - A2A服务
-"""
+
 import asyncio
-import uuid
 import json
+import os
+import re
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+from mcp import ClientSession
+from mcp.client.streamable_http import streamablehttp_client
 from langchain_openai import ChatOpenAI
-from langchain_core.prompts import ChatPromptTemplate
 from python_a2a import AgentCard, AgentSkill, run_server, TaskStatus, TaskState, A2AServer, Message, \
     TextContent, MessageRole, Task
 
@@ -28,6 +28,35 @@ llm = ChatOpenAI(
     api_key=conf.api_key,
     temperature=conf.temperature
 )
+
+attraction_sql_prompt = """
+你是景点查询助手。请从用户问题中提取城市或省份，生成一条只读的 MySQL SELECT 语句。
+表名是 attractions，字段包括 name, province, city, category, description,
+opening_hours, ticket_price, rating, suitable_season, accessibility, tips。
+优先按 city 或 province 查询，按 rating 降序，最多返回 5 条。
+只输出 SQL，不要 Markdown、解释或其他文本。
+
+用户问题：{query}
+"""
+
+
+def get_attraction_info(query: str) -> str:
+    """通过景点 MCP 工具查询数据，返回 JSON 文本。"""
+    sql = llm.invoke(attraction_sql_prompt.format(query=query)).content.strip()
+    sql = sql.replace("```sql", "").replace("```", "").strip()
+    if not re.match(r"^select\b", sql, re.IGNORECASE) or re.search(
+        r"\b(insert|update|delete|drop|alter|truncate)\b", sql, re.IGNORECASE
+    ):
+        raise ValueError("景点查询只允许执行 SELECT 语句")
+
+    async def call_mcp():
+        async with streamablehttp_client("http://127.0.0.1:8004/mcp") as (read, write, _):
+            async with ClientSession(read, write) as session:
+                await session.initialize()
+                result = await session.call_tool("query_attractions", {"sql": sql})
+                return result.content[0].text
+
+    return asyncio.run(call_mcp())
 
 # Agent 卡片定义
 agent_card = AgentCard(
@@ -76,9 +105,12 @@ class AttractionRecommendServer(A2AServer):
             
             logger.info(f"景点推荐查询: {query}")
             
-            # 2. 调用LLM生成推荐
+            # 2. 先通过 MCP 查询景点数据，再由 LLM 生成推荐
+            raw_response = get_attraction_info(query)
             chain = SmartVoyagePrompts.attraction_prompt() | self.llm
-            recommendation = chain.invoke({"query": query}).content.strip()
+            recommendation = chain.invoke(
+                {"query": query + "\n景点数据库结果：" + raw_response}
+            ).content.strip()
             
             logger.info(f"景点推荐结果: {recommendation}")
             

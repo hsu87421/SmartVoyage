@@ -1,12 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-文件名: query1.py
-作者: ZZS
-项目: LlmProject
-创建日期: 2026/2/4
-描述: 
-"""
+
 
 import mysql.connector
 import json

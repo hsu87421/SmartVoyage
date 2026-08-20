@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-文件名: weather_server.py
-作者: ZZS
-项目: LlmProject
-创建日期: 2026/2/4
-描述: 
-"""
+
 import json
 import asyncio
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
 from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
 from python_a2a import A2AServer, run_server, AgentCard, AgentSkill, TaskStatus, TaskState
