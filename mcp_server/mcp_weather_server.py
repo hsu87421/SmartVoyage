@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-文件名: mcp_weather_server.py
-作者: ZZS
-项目: LlmProject
-创建日期: 2026/2/4
-描述: 
-"""
+
 import mysql.connector
 import json
+import os
+import sys
 from datetime import date, datetime, timedelta
 from decimal import Decimal
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from mcp.server.fastmcp import FastMCP
 

@@ -172,13 +172,8 @@ with col1:
                         else:
                             agent_name = None
 
-                        # 不同意图处理方式
-                        if intent == "attraction":
-                            # 对于景点推荐，直接使用LLM生成
-                            chain = SmartVoyagePrompts.attraction_prompt() | llm
-                            rec_response = chain.invoke({"query": prompt}).content.strip()
-                            responses.append(rec_response)
-                        elif agent_name:
+                        # 统一通过 A2A Agent 处理
+                        if agent_name:
                             # 对于代理意图，则调用代理
                             # 1）获取问题
                             query_str = user_queries.get(intent, {})
