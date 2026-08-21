@@ -1,12 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-文件名: main_prompts.py
-作者: ZZS
-项目: LlmProject
-创建日期: 2026/2/6
-描述: 
-"""
 
 from langchain_core.prompts import ChatPromptTemplate
 
@@ -86,6 +77,7 @@ class SmartVoyagePrompts:
 - 保持中文，150-250字。
 
 查询：{query}
+结果：{raw_response}
 """)
 
 

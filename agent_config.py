@@ -1,10 +1,5 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+
 """
-文件名: agent_config.py
-作者: ZZS
-项目: LlmProject
-创建日期: 2026/2/6
 描述: Agent 网络配置文件 - 集中管理所有 Agent 的 URL 和元数据
 """
 
