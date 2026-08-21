@@ -1,12 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-文件名: app.py
-作者: ZZS
-项目: LlmProject
-创建日期: 2026/2/6
-描述: 
-"""
+
 import os
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
@@ -251,4 +245,4 @@ with col2:
 
 # 页脚
 st.markdown("---")
-st.markdown('<div class="footer">Powered by 黑马程序员 | 基于Agent2Agent的旅行助手系统 v2.0</div>', unsafe_allow_html=True)
+st.markdown('<div class="footer"> 基于Agent2Agent的旅行助手系统 v2.0</div>', unsafe_allow_html=True)

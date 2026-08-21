@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+
 """
 描述: 景点推荐MCP服务器 - 提供景点数据查询工具
 """

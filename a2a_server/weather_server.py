@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 import json
 import asyncio
 import os
@@ -31,7 +28,7 @@ llm = ChatOpenAI(
 )
 
 # 数据表 schema
-table_schema_string = """  # 定义天气数据表的SQL schema字符串，用于Prompt上下文
+table_schema_string = """  # 定义天气数据表的SQL schema字符串,用于Prompt上下文
 CREATE TABLE IF NOT EXISTS weather_data (
 id INT AUTO_INCREMENT PRIMARY KEY,
 city VARCHAR(50) NOT NULL COMMENT '城市名称',
@@ -184,7 +181,7 @@ class WeatherQueryServer(A2AServer):
                 return task
 
             # 否则则提取SQL查询，并进行MCP调用
-            sql_query = gen_result["sql"]  #
+            sql_query = gen_result["sql"]
             logger.info(f"生成的SQL查询: {sql_query}")
 
             # 3 调用MCP
