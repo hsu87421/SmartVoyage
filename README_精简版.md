@@ -216,22 +216,6 @@ INTENT_TO_AGENT = {
 - LLM API 配置 (model_name, api_key, base_url)
 - 意图映射表
 
----
-
-## 💡 主要改进（vs 原始版本）
-
-### ✅ 已完成
-- ✅ 统一的 A2A 架构（3 个独立 Agent）
-- ✅ 统一的 MCP 工具集成（3 个工具服务）
-- ✅ 完整的意图识别和路由机制
-- ✅ 景点推荐 Agent 的完整实现
-- ✅ 数据库集成（weather, tickets, attractions）
-- ✅ 清晰的配置管理（agent_config.py）
-
-### ❌ 已删除
-- ❌ 票务预订 Agent (order_server.py)
-- ❌ 票务预订 MCP 工具 (mcp_order_server.py)
-- ❌ 订单相关的测试文件
 
 ---
 
@@ -334,40 +318,5 @@ INTENT_TO_AGENT = {
 | 系统可用性 | 99% | ✅ 达成 |
 | 支持的意图类型 | 5+ | ✅ 5 种 |
 
----
 
-## 📞 故障排查
-
-### 问题 1：无法连接到 Agent
-**原因**: Agent 服务器未启动或端口被占用
-**解决**: 
-```bash
-# 检查进程是否运行
-netstat -ano | findstr :5005
-# 杀死占用进程
-taskkill /pid <PID> /f
-```
-
-### 问题 2：数据库连接失败
-**原因**: 数据库未运行或配置错误
-**解决**: 检查 config.py 中的数据库配置
-
-### 问题 3：意图识别错误
-**原因**: LLM 模型调用失败或提示词问题
-**解决**: 检查 API 密钥和网络连接
-
----
-
-## 🎓 学习资源
-
-- [Python A2A 文档](https://github.com/python-a2a/python-a2a)
-- [MCP 协议文档](https://modelcontextprotocol.io)
-- [FastMCP 文档](https://github.com/zackees/fastmcp)
-- [LangChain 文档](https://python.langchain.com)
-
----
-
-**项目状态**: ✅ 已精简为核心三大功能  
-**最后更新**: 2026-02-06  
-**版本**: 2.1 (删除预订功能)
 
