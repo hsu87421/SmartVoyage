@@ -24,7 +24,7 @@ conf = Config()
 def create_ticket_mcp_server():
     # 创建FastMCP实例
     ticket_mcp = FastMCP(name="TicketTools",
-                         instructions="票务查询工具，基于 train_tickets, flight_tickets, concert_tickets 表。只支持查询。",
+                         instructions="火车票查询工具，支持实时查询。",
                          log_level="ERROR",
                          host="127.0.0.1", port=8001)
 
@@ -51,4 +51,5 @@ def create_ticket_mcp_server():
     except Exception as e:
         print(f"服务器启动失败: {e}")
 
-create_ticket_mcp_server()
+if __name__ == "__main__":
+    create_ticket_mcp_server()

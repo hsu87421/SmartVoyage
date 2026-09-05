@@ -2,30 +2,33 @@
 
 import requests
 import mysql.connector
+import os
 from datetime import datetime, timedelta
 import schedule
 import time
 import json
-import gzip
 import pytz
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # 配置
-API_KEY = "5ef0a47e161a4ea997227322317eae83"
+API_KEY = os.getenv("QWEATHER_API_KEY", "")
 city_codes = {
-    "西安": "101010100",
-    "南极": "101020100",
-    "月球": "101280101"
+    "西安": "101110101",
+    "上海": "101020100",
+    "广州": "101280101",
 }
-BASE_URL = "https://m7487r6ych.re.qweatherapi.com/v7/weather/30d"
+BASE_URL = os.getenv("QWEATHER_BASE_URL", "https://devapi.qweather.com/v7/weather/30d")
 TZ = pytz.timezone('Asia/Shanghai')  # 使用上海时区
 
 
 # MySQL 配置
 db_config = {
-    "host": "localhost",
-    "user": "root",
-    "password": "123456",
-    "database": "travel_rag",
+    "host": os.getenv("MYSQL_HOST", "localhost"),
+    "user": os.getenv("MYSQL_USER", "root"),
+    "password": os.getenv("MYSQL_PASSWORD", ""),
+    "database": os.getenv("MYSQL_DATABASE", "travel_rag"),
     "charset": "utf8mb4"
 }
 
@@ -39,6 +42,10 @@ def fetch_weather_data(city, location):
     :param location:
     :return: 天气数据
     """
+    if not API_KEY:
+        print("未配置 QWEATHER_API_KEY。请在项目根目录的 .env 中填写和风天气 API Key。")
+        return None
+
     headers = {
         "X-QW-Api-Key": API_KEY,
         "Accept-Encoding": "gzip"
@@ -47,11 +54,7 @@ def fetch_weather_data(city, location):
     try:
         response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
-        if response.headers.get('Content-Encoding') == 'gzip':
-            data = gzip.decompress(response.content).decode('utf-8')
-        else:
-            data = response.text
-        return json.loads(data)
+        return response.json()
     except requests.RequestException as e:
         print(f"请求 {city} 天气数据失败: {e}")
         return None

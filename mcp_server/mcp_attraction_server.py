@@ -3,6 +3,7 @@
 描述: 景点推荐MCP服务器 - 提供景点数据查询工具
 """
 import mysql.connector
+import requests
 import json
 import os
 import sys
@@ -55,6 +56,11 @@ class AttractionService:
                     if isinstance(value, (date, datetime, timedelta, Decimal)):
                         result[key] = default_encoder(value)
             
+            if not results:
+                external = self._query_external(sql)
+                if external is not None:
+                    return json.dumps(external, ensure_ascii=False)
+
             # 序列化为JSON
             return json.dumps(
                 {"status": "success", "data": results} if results 
@@ -68,6 +74,45 @@ class AttractionService:
                 {"status": "error", "message": str(e)},
                 ensure_ascii=False
             )
+
+    def _query_external(self, sql: str):
+        """数据库无结果时调用阿里云景点接口。"""
+        appcode = os.getenv("ATTRACTION_API_APPCODE", "").strip()
+        if not appcode or appcode.startswith("replace-with-"):
+            return None
+
+        import re
+        value = re.search(r"(?:city|province|name)\s*=\s*['\"]([^'\"]+)", sql, re.I)
+        keyword = value.group(1) if value else ""
+        if not keyword:
+            return None
+
+        # .env stores the complete endpoint; keep a complete fallback for standalone use.
+        api_url = os.getenv(
+            "ATTRACTION_API_BASE_URL",
+            "https://jmqgjdcx.market.alicloudapi.com/area/scenic-spots",
+        ).strip().rstrip("/")
+        try:
+            response = requests.post(
+                api_url,
+                headers={
+                    "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+                    "Authorization": f"APPCODE {appcode}",
+                },
+                data={"keyword": keyword, "page": "1"},
+                timeout=15,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            result = payload.get("result", payload.get("data", payload))
+            if isinstance(result, dict):
+                result = result.get("list", result.get("data", result))
+            if isinstance(result, dict):
+                result = [result]
+            return {"status": "success", "data": result if isinstance(result, list) else []}
+        except (requests.RequestException, ValueError) as exc:
+            logger.error(f"阿里云景点接口调用失败: {exc}")
+            return {"status": "error", "message": f"景点外部接口调用失败: {exc}"}
 
 
 # 创建景点推荐MCP服务器

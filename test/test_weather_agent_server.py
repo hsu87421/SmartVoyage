@@ -1,5 +1,6 @@
 
 import asyncio
+import os
 import uuid
 
 from python_a2a import A2AClient, Message, TextContent, MessageRole, Task
@@ -13,9 +14,9 @@ conf = Config()
 
 # 初始化 LLM
 llm = ChatOpenAI(
-            model=conf.model_name,
-            api_key=conf.api_key,
-            base_url=conf.base_url,
+            model=os.environ["LLM_MODEL_NAME"],
+            api_key=os.environ["LLM_API_KEY"],
+            base_url=os.environ["LLM_BASE_URL"],
             temperature=0.1
         )
 

@@ -22,9 +22,9 @@ conf = Config()
 
 # 初始化LLM
 llm = ChatOpenAI(
-    model=conf.model_name,
-    base_url=conf.base_url,
-    api_key=conf.api_key,
+    model=os.environ["LLM_MODEL_NAME"],
+    base_url=os.environ["LLM_BASE_URL"],
+    api_key=os.environ["LLM_API_KEY"],
     temperature=0.1
 )
 
@@ -46,8 +46,8 @@ CREATE TABLE train_tickets (
     UNIQUE KEY unique_train (departure_time, train_number)
 ) COMMENT='火车票信息表';
 
--- 机票表
-CREATE TABLE flight_tickets (
+/* removed unsupported flight and concert table schemas */
+/*
     id INT AUTO_INCREMENT PRIMARY KEY COMMENT '主键，自增，唯一标识每条记录',
     departure_city VARCHAR(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '出发城市（如“北京”）',
     arrival_city VARCHAR(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '到达城市（如“上海”）',
@@ -77,22 +77,21 @@ CREATE TABLE concert_tickets (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间，自动记录插入时间',
     UNIQUE KEY unique_concert (start_time, artist, ticket_type)
 ) COMMENT='演唱会门票信息表';
+*/
 """
 
 # 生成SQL的提示词
 sql_prompt = ChatPromptTemplate.from_template(
     """
-系统提示：你是一个专业的票务SQL生成器，需要从对话历史（含用户的问题）中提取用户的意图以及关键信息，然后基于train_tickets、flight_tickets、concert_tickets表生成SELECT语句。
+系统提示：你是一个专业的火车票SQL生成器，需要从对话历史中提取信息，并基于train_tickets表生成SELECT语句。
 根据对话历史：
-1. 提取用户的意图，意图有3种（train: 火车/高铁, flight: 机票, concert: 演唱会），输出：{{"type": "train/flight/concert"}}；如果无法识别意图，或者意图不在这3种内，则模仿最后1个示例回复即可。
+1. 当前仅支持火车/高铁，输出：{{"type": "train"}}；其他票务类型请提示当前仅支持火车票。
 2. 根据用户的意图，生成对应表的 SELECT 语句，仅查询指定字段：
 - train_tickets: id, departure_city, arrival_city, departure_time, arrival_time, train_number, seat_type, price, remaining_seats
-- flight_tickets: id, departure_city, arrival_city, departure_time, arrival_time, flight_number, cabin_type, price, remaining_seats
-- concert_tickets: id, artist, city, venue, start_time, end_time, ticket_type, price, remaining_seats
-3. 如果用户在查询票务信息时，缺少必要信息，则输出：{{"status": "input_required", "message": "请提供票务类型（如火车票、机票、演唱会）和必要信息（如城市、日期）。"}} ，如示例所示；如果对话历史中信息齐全，则输出纯SQL即可。
+3. 如果缺少出发城市、到达城市或日期，则输出追问；如果信息齐全，则输出纯SQL即可。
+   城市条件可以使用 departure_city/arrival_city 的等值匹配，也可以使用 LIKE '%城市名%'；两种写法都必须保留城市名称。
 其中，每种意图必要的信息有：
-- flight/train: 【departure_city (出发城市), arrival_city (到达城市), date (日期)】 或 【train_number/flight_number (车次)】
-- concert: city (城市), artist (艺人), date (日期)。
+- train: 【departure_city (出发城市), arrival_city (到达城市), date (日期)】
 4. 按要求输出两行数据或一行数据即可，不需要输出其他内容。
 
 
@@ -102,23 +101,13 @@ sql_prompt = ChatPromptTemplate.from_template(
 {{"type": "train"}}
 SELECT id, departure_city, arrival_city, departure_time, arrival_time, train_number, seat_type, price, remaining_seats FROM train_tickets WHERE departure_city = '北京' AND arrival_city = '上海' AND DATE(departure_time) = '2025-07-31' AND seat_type = '硬卧'
 
-- 对话: user: 机票 上海 广州 2025-09-11 头等舱
-输出: 
-{{"type": "flight"}}
-SELECT id, departure_city, arrival_city, departure_time, arrival_time, flight_number, cabin_type, price, remaining_seats FROM flight_tickets WHERE departure_city = '上海' AND arrival_city = '广州' AND DATE(departure_time) = '2025-09-11' AND cabin_type = '头等舱'
-
-- 对话: user: 演唱会 北京 刀郎 2025-08-23 看台
-输出: 
-{{"type": "concert"}}
-SELECT id, artist, city, venue, start_time, end_time, ticket_type, price, remaining_seats FROM concert_tickets WHERE city = '北京' AND artist = '刀郎' AND DATE(start_time) = '2025-08-23' AND ticket_type = '看台'
-
 - 对话: user: 火车票
 输出: 
-{{"status": "input_required", "message": "请提供票务类型（如火车票、机票、演唱会）和必要信息（如城市、日期）。"}}
+{{"status": "input_required", "message": "请提供出发城市、到达城市和日期。当前仅支持火车票查询。"}}
 
 - 对话: user: 你好
 输出: 
-{{"status": "input_required", "message": "请提供票务类型（如火车票、机票、演唱会）和必要信息（如城市、日期）。"}} 
+{{"status": "input_required", "message": "请提供出发城市、到达城市和日期。当前仅支持火车票查询。"}}
 
 表结构：{table_schema_string}
 对话历史: {conversation}
@@ -152,15 +141,14 @@ async def get_ticket_info(sql):
 agent_card = AgentCard(
     name="TicketQueryAssistant",
     description="基于 LangChain 提供票务查询服务的助手",
-    url="http://localhost:5006",
+    url="http://127.0.0.1:5006",
     version="1.0.4",
     capabilities={"streaming": True, "memory": True},
     skills=[
         AgentSkill(
             name="execute ticket query",
             description="根据客户端提供的输入执行票务查询，返回数据库结果，支持自然语言输入",
-            examples=["火车票 北京 上海 2025-07-31 硬卧", "机票 北京 上海 2025-07-31 经济舱",
-                      "演唱会 北京 刀郎 2025-08-23 看台"]
+            examples=["火车票 北京 上海 2025-07-31"]
         )
     ]
 )
@@ -242,11 +230,15 @@ class TicketQueryServer(A2AServer):
                 response_text = ""  # 初始化响应文本
                 for d in data:  # 遍历每个数据项
                     if query_type == "train":  # 火车票类型
-                        response_text += f"{d['departure_city']} 到 {d['arrival_city']} {d['departure_time']}: 车次 {d['train_number']}，{d['seat_type']}，票价 {d['price']}元，剩余 {d['remaining_seats']} 张\n"  # 格式化火车票文本
-                    elif query_type == "flight":  # 机票类型
-                        response_text += f"{d['departure_city']} 到 {d['arrival_city']} {d['departure_time']}: 航班 {d['flight_number']}，{d['cabin_type']}，票价 {d['price']}元，剩余 {d['remaining_seats']} 张\n"  # 格式化机票文本
-                    elif query_type == "concert":  # 演唱会类型
-                        response_text += f"{d['city']} {d['start_time']}: {d['artist']} 演唱会，{d['ticket_type']}，场地 {d['venue']}，票价 {d['price']}元，剩余 {d['remaining_seats']} 张\n"  # 格式化演唱会文本
+                        # Support both normalized DB fields and raw station2s API fields.
+                        departure = d.get("departure_city", d.get("station", ""))
+                        arrival = d.get("arrival_city", d.get("endstation", ""))
+                        departure_time = d.get("departure_time", d.get("departuretime", ""))
+                        train_number = d.get("train_number", d.get("trainno", d.get("trainno12306", "")))
+                        seat_type = d.get("seat_type", d.get("typename", ""))
+                        price = d.get("price", d.get("pricesw", d.get("priceyd", d.get("priceed", "-"))))
+                        remaining = d.get("remaining_seats", d.get("tickets", "-"))
+                        response_text += f"{departure} 到 {arrival} {departure_time}: 车次 {train_number}，{seat_type}，票价 {price}元，余票 {remaining}\n"
                 if not response_text:  # 检查文本是否为空
                     response_text = "无结果。如果需要其他日期，请补充。"
 

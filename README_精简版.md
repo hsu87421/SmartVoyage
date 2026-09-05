@@ -23,8 +23,8 @@
 - **Agent**: `TicketQueryAssistant`
 - **端口**: 5006
 - **MCP 端口**: 8001
-- **功能**: 火车票、飞机票、演唱会票的查询
-- **支持的意图**: flight, train, concert
+- **功能**: 火车票查询
+- **支持的意图**: train
 - **示例**: "查询北京到上海的机票"、"西安到成都的火车票"、"周杰伦演唱会门票"
 
 ### 3️⃣ 景点推荐
@@ -135,9 +135,7 @@ streamlit run app.py
 | 意图 | Agent | 功能描述 |
 |------|-------|--------|
 | `weather` | WeatherQueryAssistant | 天气查询 |
-| `flight` | TicketQueryAssistant | 飞机票查询 |
 | `train` | TicketQueryAssistant | 火车票查询 |
-| `concert` | TicketQueryAssistant | 演唱会票查询 |
 | `attraction` | AttractionRecommendAssistant | 景点推荐 |
 | `out_of_scope` | LLM 直接回复 | 超出范围的查询 |
 
@@ -230,7 +228,7 @@ INTENT_TO_AGENT = {
 
 #### ticket_server.py
 - A2A 服务器，处理票务查询任务
-- 支持火车、飞机、演唱会票查询
+- 支持火车票查询
 - 使用 SQL 生成器智能解析用户意图
 
 #### attraction_server.py

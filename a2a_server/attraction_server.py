@@ -21,9 +21,9 @@ conf = Config()
 
 # 初始化LLM
 llm = ChatOpenAI(
-    model=conf.model_name,
-    base_url=conf.base_url,
-    api_key=conf.api_key,
+    model=os.environ["LLM_MODEL_NAME"],
+    base_url=os.environ["LLM_BASE_URL"],
+    api_key=os.environ["LLM_API_KEY"],
     temperature=conf.temperature
 )
 
@@ -60,7 +60,7 @@ def get_attraction_info(query: str) -> str:
 agent_card = AgentCard(
     name="AttractionRecommendAssistant",
     description="基于用户偏好生成景点推荐的智能助手",
-    url="http://localhost:5008",
+    url="http://127.0.0.1:5008",
     version="1.0.0",
     capabilities={"streaming": True, "memory": True},
     skills=[
@@ -107,7 +107,10 @@ class AttractionRecommendServer(A2AServer):
             raw_response = get_attraction_info(query)
             chain = SmartVoyagePrompts.attraction_prompt() | self.llm
             recommendation = chain.invoke(
-                {"query": query + "\n景点数据库结果：" + raw_response}
+                {
+                    "query": query,
+                    "raw_response": raw_response,
+                }
             ).content.strip()
             
             logger.info(f"景点推荐结果: {recommendation}")

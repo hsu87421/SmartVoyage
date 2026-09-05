@@ -36,22 +36,22 @@ def initialize_system():
     global agent_network, llm, agent_urls, conversation_history
     # 存储代理URL信息，便于查看
     agent_urls = {
-        "WeatherQueryAssistant": "http://localhost:5005",  # 天气查询URL
-        "TicketQueryAssistant": "http://localhost:5006",  # 票务查询URL
-        "AttractionRecommendAssistant": "http://localhost:5008"  # 景点推荐URL
+        "WeatherQueryAssistant": "http://127.0.0.1:5005",  # 天气查询URL
+        "TicketQueryAssistant": "http://127.0.0.1:5006",  # 票务查询URL
+        "AttractionRecommendAssistant": "http://127.0.0.1:5008"  # 景点推荐URL
     }
     # 创建代理网络
     network = AgentNetwork(name="旅行助手网络")
-    network.add("WeatherQueryAssistant", "http://localhost:5005")
-    network.add("TicketQueryAssistant", "http://localhost:5006")
-    network.add("AttractionRecommendAssistant", "http://localhost:5008")
+    network.add("WeatherQueryAssistant", "http://127.0.0.1:5005")
+    network.add("TicketQueryAssistant", "http://127.0.0.1:5006")
+    network.add("AttractionRecommendAssistant", "http://127.0.0.1:5008")
     agent_network = network
 
     # 加载配置并创建LLM
     llm = ChatOpenAI(
-        model=conf.model_name,
-        api_key=conf.api_key,
-        base_url=conf.base_url,
+        model=os.environ["LLM_MODEL_NAME"],
+        api_key=os.environ["LLM_API_KEY"],
+        base_url=os.environ["LLM_BASE_URL"],
         temperature=0.1
     )
 

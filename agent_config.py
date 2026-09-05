@@ -6,7 +6,7 @@
 # Agent 配置字典 - 便于扩展和维护
 AGENT_CONFIG = {
     "WeatherQueryAssistant": {
-        "url": "http://localhost:5005",
+        "url": "http://127.0.0.1:5005",
         "description": "天气查询服务",
         "port": 5005,
         "mcp_port": 8002,
@@ -14,15 +14,15 @@ AGENT_CONFIG = {
         "requires_summarization": True,  # 是否需要结果汇总
     },
     "TicketQueryAssistant": {
-        "url": "http://localhost:5006",
+        "url": "http://127.0.0.1:5006",
         "description": "票务查询服务",
         "port": 5006,
         "mcp_port": 8001,
-        "intents": ["flight", "train", "concert"],
+        "intents": ["train"],
         "requires_summarization": True,
     },
     "AttractionRecommendAssistant": {
-        "url": "http://localhost:5008",
+        "url": "http://127.0.0.1:5008",
         "description": "景点推荐服务",
         "port": 5008,
         "mcp_port": 8004,
@@ -34,9 +34,7 @@ AGENT_CONFIG = {
 # 意图到 Agent 的映射 - 用于快速查找
 INTENT_TO_AGENT = {
     "weather": "WeatherQueryAssistant",
-    "flight": "TicketQueryAssistant",
     "train": "TicketQueryAssistant",
-    "concert": "TicketQueryAssistant",
     "attraction": "AttractionRecommendAssistant",
 }
 

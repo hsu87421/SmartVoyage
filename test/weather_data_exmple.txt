@@ -1,4 +1,4 @@
-C:\Users\13716>curl --compressed -H "X-QW-Api-Key: 9ef68fe55401485180dd968fac902300"
+C:\Users\13716>curl --compressed -H "X-QW-Api-Key: <your-qweather-api-key>"
 "https://m7487r6ych.re.qweatherapi.com/v7/weather/30d?location=101010100"
 
 {"code":"200",

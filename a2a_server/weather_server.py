@@ -2,6 +2,8 @@ import json
 import asyncio
 import os
 import sys
+import re
+import requests
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
@@ -19,11 +21,103 @@ from SmartVoyage.create_logger import logger
 
 conf = Config()
 
+
+def fetch_external_weather(city: str, dates=None):
+    """Fallback to QWeather when the local weather table has no rows."""
+    api_key = os.getenv("QWEATHER_API_KEY", "").strip()
+    if not api_key:
+        return []
+
+    city_codes = {
+        "北京": "101010100", "上海": "101020100", "广州": "101280101",
+        "深圳": "101280601", "杭州": "101210101", "成都": "101270101",
+        "郑州": "101180101", "南阳": "101180701", "西安": "101110101",
+    }
+    location = city_codes.get(city)
+    headers = {"X-QW-Api-Key": api_key, "Accept-Encoding": "gzip"}
+    try:
+        if not location:
+            geo = requests.get(
+                "https://geoapi.qweather.com/geo/v2/city/lookup",
+                params={"location": city, "number": 1}, headers=headers, timeout=10
+            )
+            geo.raise_for_status()
+            locations = geo.json().get("location", [])
+            location = locations[0].get("id") if locations else None
+        if not location:
+            return []
+
+        base_url = os.getenv(
+            "QWEATHER_BASE_URL",
+            "https://devapi.qweather.com/v7/weather/30d",
+        ).rstrip("/")
+        result = requests.get(
+            base_url, params={"location": location}, headers=headers, timeout=15
+        )
+        result.raise_for_status()
+        payload = result.json()
+        if payload.get("code") != "200":
+            logger.warning("QWeather returned code %s for %s", payload.get("code"), city)
+            return []
+        rows = []
+        for item in payload.get("daily", []):
+            if dates and item.get("fxDate") not in dates:
+                continue
+            rows.append({
+                "city": city, "fx_date": item.get("fxDate"),
+                "text_day": item.get("textDay", ""), "text_night": item.get("textNight", ""),
+                "temp_min": item.get("tempMin", ""), "temp_max": item.get("tempMax", ""),
+                "humidity": item.get("humidity", ""), "wind_dir_day": item.get("windDirDay", ""),
+                "precip": item.get("precip", ""),
+            })
+        return rows
+    except (requests.RequestException, ValueError, KeyError) as exc:
+        logger.warning("QWeather fallback failed for %s: %s; trying Open-Meteo", city, exc)
+
+    # Open-Meteo is a keyless fallback for current forecasts.
+    try:
+        geo = requests.get(
+            "https://geocoding-api.open-meteo.com/v1/search",
+            params={"name": city, "count": 1, "language": "zh", "format": "json"},
+            timeout=10,
+        )
+        geo.raise_for_status()
+        place = (geo.json().get("results") or [None])[0]
+        if not place:
+            return []
+        forecast = requests.get(
+            "https://api.open-meteo.com/v1/forecast",
+            params={
+                "latitude": place["latitude"], "longitude": place["longitude"],
+                "daily": "weather_code,temperature_2m_max,temperature_2m_min,relative_humidity_2m_max,precipitation_sum,wind_speed_10m_max",
+                "timezone": "Asia/Shanghai", "forecast_days": 16,
+            }, timeout=15,
+        )
+        forecast.raise_for_status()
+        daily = forecast.json().get("daily", {})
+        code_names = {0: "晴", 1: "大部晴朗", 2: "局部多云", 3: "阴", 45: "雾", 51: "小雨", 61: "小雨", 63: "中雨", 65: "大雨", 71: "小雪", 80: "阵雨", 95: "雷雨"}
+        rows = []
+        for i, fx_date in enumerate(daily.get("time", [])):
+            if dates and fx_date not in dates:
+                continue
+            rows.append({
+                "city": city, "fx_date": fx_date,
+                "text_day": code_names.get(daily.get("weather_code", [])[i], "天气变化").strip(),
+                "text_night": "", "temp_min": daily.get("temperature_2m_min", [""])[i],
+                "temp_max": daily.get("temperature_2m_max", [""])[i],
+                "humidity": daily.get("relative_humidity_2m_max", [""])[i],
+                "wind_dir_day": "", "precip": daily.get("precipitation_sum", [""])[i],
+            })
+        return rows
+    except (requests.RequestException, ValueError, KeyError, IndexError) as exc:
+        logger.warning("Open-Meteo fallback failed for %s: %s", city, exc)
+        return []
+
 # 初始化LLM
 llm = ChatOpenAI(
-    model=conf.model_name,
-    base_url=conf.base_url,
-    api_key=conf.api_key,
+    model=os.environ["LLM_MODEL_NAME"],
+    base_url=os.environ["LLM_BASE_URL"],
+    api_key=os.environ["LLM_API_KEY"],
     temperature=0.1
 )
 
@@ -125,7 +219,7 @@ async def get_weather(sql):
 agent_card = AgentCard(
     name="WeatherQueryAssistant",
     description="基于LangChain提供天气查询服务的助手",
-    url="http://localhost:5005",
+    url="http://127.0.0.1:5005",
     version="1.0.0",
     capabilities={"streaming": True, "memory": True},  # 设置能力：支持流式和内存
     skills=[  # 定义技能列表
@@ -201,6 +295,21 @@ class WeatherQueryServer(A2AServer):
                 task.artifacts = [{"parts": [{"type": "text", "text": response_text}]}]
                 task.status = TaskStatus(state=TaskState.COMPLETED)
             elif response.get("status") == "no_data":
+                # Fall back to the live QWeather API when the local table has no rows.
+                city_match = re.search(r"\bcity\s*=\s*['\"]([^'\"]+)", sql_query, re.I)
+                city = city_match.group(1) if city_match else ""
+                dates = set(re.findall(r"\b\d{4}-\d{2}-\d{2}\b", sql_query))
+                external_rows = fetch_external_weather(city, dates or None) if city else []
+                if external_rows:
+                    response_text = "\n".join([
+                        f"{d['city']} {d['fx_date']}: {d['text_day']}（夜间{d['text_night']}），"
+                        f"温度 {d['temp_min']}-{d['temp_max']}°C，湿度 {d['humidity']}%，"
+                        f"风向 {d['wind_dir_day']}，降水 {d['precip']}mm（数据来源：和风天气）"
+                        for d in external_rows
+                    ])
+                    task.artifacts = [{"parts": [{"type": "text", "text": response_text}]}]
+                    task.status = TaskStatus(state=TaskState.COMPLETED)
+                    return task
                 response_text = response.get("message", "请重新输入查询的城市和日期。")
 
                 # 设置任务状态为输入所需，添加追问消息

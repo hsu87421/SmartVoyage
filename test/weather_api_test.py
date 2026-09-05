@@ -1,23 +1,25 @@
 
 import requests
-import gzip
-import json
+import os
+from dotenv import load_dotenv
 
-# 配置（使用自己的密钥）
-API_KEY = "9ef68fe55401485180dd968fac902300"
-url = "https://m7487r6ych.re.qweatherapi.com/v7/weather/30d?location=101010100"  # 北京30天预报
+load_dotenv()
+
+API_KEY = os.getenv("QWEATHER_API_KEY", "")
+BASE_URL = os.getenv("QWEATHER_BASE_URL", "https://devapi.qweather.com/v7/weather/30d")
 headers = {
     "X-QW-Api-Key": API_KEY,
-    "Accept-Encoding": "gzip"  # 请求gzip，但不强制
 }
 try:
+    if not API_KEY:
+        raise RuntimeError("未配置 QWEATHER_API_KEY")
     print("正在请求API...")
-    response = requests.get(url, headers=headers, timeout=10)
-    data = response.text
-    parsed_data = json.loads(data)
+    response = requests.get(BASE_URL, headers=headers, params={"location": "101010100"}, timeout=10)
+    response.raise_for_status()
+    parsed_data = response.json()
     print("直接解析成功！")
     print(parsed_data)
-except requests.RequestException as e:
+except (requests.RequestException, RuntimeError) as e:
     print(f"直接解析失败哦: {e}")
 
 # 正在请求API...

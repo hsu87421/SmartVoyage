@@ -6,7 +6,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 import asyncio
 import uuid
 import streamlit as st
-from python_a2a import AgentNetwork, Message, TextContent, MessageRole, Task
+from python_a2a import AgentNetwork, A2AClient, Message, TextContent, MessageRole, Task
 from langchain_openai import ChatOpenAI
 import json
 from datetime import datetime
@@ -63,25 +63,36 @@ if "messages" not in st.session_state:
 if "agent_network" not in st.session_state:
     # 存储代理URL信息，便于查看
     st.session_state.agent_urls = {
-        "WeatherQueryAssistant": "http://localhost:5005",
-        "TicketQueryAssistant": "http://localhost:5006",
-        "AttractionRecommendAssistant": "http://localhost:5008"
+        "WeatherQueryAssistant": "http://127.0.0.1:5005",
+        "TicketQueryAssistant": "http://127.0.0.1:5006",
+        "AttractionRecommendAssistant": "http://127.0.0.1:5008"
     }
     # 初始化网络
     network = AgentNetwork(name="Travel Assistant Network")
-    network.add("WeatherQueryAssistant", "http://localhost:5005")
-    network.add("TicketQueryAssistant", "http://localhost:5006")
-    network.add("AttractionRecommendAssistant", "http://localhost:5008")
+    # 各 Agent 均可能包含外部 API 或多次 LLM 调用，统一允许 90 秒响应时间。
+    network.add("WeatherQueryAssistant", A2AClient("http://127.0.0.1:5005", timeout=90))
+    network.add("TicketQueryAssistant", A2AClient("http://127.0.0.1:5006", timeout=90))
+    network.add("AttractionRecommendAssistant", A2AClient("http://127.0.0.1:5008", timeout=90))
     st.session_state.agent_network = network
     # 加载配置并创建LLM
     st.session_state.llm = ChatOpenAI(
-        model=conf.model_name,
-        api_key=conf.api_key,
-        base_url=conf.base_url,
+        model=os.environ["LLM_MODEL_NAME"],
+        api_key=os.environ["LLM_API_KEY"],
+        base_url=os.environ["LLM_BASE_URL"],
         temperature=0.1
     )
     # 存储对话历史用于意图识别
     st.session_state.conversation_history = ""
+
+# Streamlit 会复用已有会话，确保旧客户端也应用新的超时配置。
+for agent_name in (
+    "WeatherQueryAssistant",
+    "TicketQueryAssistant",
+    "AttractionRecommendAssistant",
+):
+    agent = st.session_state.agent_network.get_agent(agent_name)
+    if agent is not None:
+        agent.timeout = 90
 
 # 意图识别agent
 def intent_agent(user_input):
@@ -158,7 +169,7 @@ with col1:
                         # 根据意图确定代理名称
                         if intent == "weather":
                             agent_name = "WeatherQueryAssistant"
-                        elif intent in ["flight", "train", "concert"]:
+                        elif intent == "train":
                             agent_name = "TicketQueryAssistant"
                         elif intent == "attraction":
                             agent_name = "AttractionRecommendAssistant"
